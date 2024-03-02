@@ -1,0 +1,587 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/HodaMemar/Patient-Similarity-through-Representation/blob/main/PreProcessing_StructuredData\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "TS9mzK0ub5lx"
+      },
+      "outputs": [],
+      "source": [
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "xb7WZXOWGGbO"
+      },
+      "outputs": [],
+      "source": [
+        "!pip install -U spacy\n",
+        "!pip install -U scispacy"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "mIu7ja4XJek8"
+      },
+      "outputs": [],
+      "source": [
+        "!pip install spacy-transformers"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "aYwRmGf-hy8A"
+      },
+      "outputs": [],
+      "source": [
+        "!pip install negspacy"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "kfVFnqRQRX3b"
+      },
+      "outputs": [],
+      "source": [
+        "!pip install https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.0/en_ner_bc5cdr_md-0.5.0.tar.gz\n",
+        " #https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.2.4/en_core_sci_sm-0.2.4.tar.gz\n",
+        " #https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.0/en_ner_bc5cdr_md-0.5.0.tar.gz\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "MRM8Bti74fBw"
+      },
+      "source": [
+        "#Reset Runtime"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "-JC0lD4nNGkl"
+      },
+      "source": [
+        "#load text"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "fEsaUt1JcPAW"
+      },
+      "outputs": [],
+      "source": [
+        "cd /content/drive/MyDrive/PaperA3/Section\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install spacy==2.3.2"
+      ],
+      "metadata": {
+        "id": "1ZJoT_sP9kSr"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install -U spacy\n",
+        "!python -m spacy download en_ner_bc5cdr_md"
+      ],
+      "metadata": {
+        "id": "qeLbXxyY_EZA"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import spacy\n",
+        "\n",
+        "# Load English tokenizer, tagger, parser and NER\n",
+        "nlp = spacy.load(\"en_core_web_sm\")\n",
+        "\n",
+        "# Process whole documents\n",
+        "text = (\"When Sebastian Thrun started working on self-driving cars at \"\n",
+        "        \"Google in 2007, few people outside of the company took him \"\n",
+        "        \"seriously. “I can tell you very senior CEOs of major American \"\n",
+        "        \"car companies would shake my hand and turn away because I wasn’t \"\n",
+        "        \"worth talking to,” said Thrun, in an interview with Recode earlier \"\n",
+        "        \"this week.\")\n",
+        "doc = nlp(text)"
+      ],
+      "metadata": {
+        "id": "qNI3VSb__ADx"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!python -m spacy download en_core_web_sm"
+      ],
+      "metadata": {
+        "id": "wRQEU3vCiYDl"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "Lpdg6R1np-02"
+      },
+      "outputs": [],
+      "source": [
+        "import re\n",
+        "\n",
+        "import scispacy\n",
+        "import spacy\n",
+        "\n",
+        "from negspacy.negation import Negex\n",
+        "from negspacy.termsets import termset\n",
+        "from scispacy.linking import EntityLinker\n",
+        "import pandas as pd\n",
+        "\n",
+        "#nlp = spacy.load(\"en_ner_bc5cdr_md\")\n",
+        "nlp = spacy.load(\"en_core_web_sm\")\n",
+        "#\n",
+        "ts = termset(\"en_clinical\")\n",
+        "nlp.add_pipe(\"negex\", config={\"neg_termset\": ts.get_patterns()})\n",
+        "nlp.add_pipe(\"scispacy_linker\", config={\"linker_name\": \"umls\", \"max_entities_per_mention\": 1})\n",
+        "\n",
+        "linker = nlp.get_pipe(\"scispacy_linker\")\n",
+        "nlp.pipe_names"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## NER : Extracting concepts from the\n",
+        "### For better management, the main file is broken into a number of smaller files, and the result of the processed files is combined at the end"
+      ],
+      "metadata": {
+        "id": "Jr7DmnVjVSpt"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from google.colab import drive\n",
+        "drive.mount('/content/mydrive/')\n",
+        "!ls\n",
+        ""
+      ],
+      "metadata": {
+        "id": "aK-XXP1UFes5"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install medspacy\n"
+      ],
+      "metadata": {
+        "id": "nCTPUgxJH7Zy"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import pandas as pd"
+      ],
+      "metadata": {
+        "id": "SlcrPq9R0ql8"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "with open(\"/content/example_discharge_summary.txt\") as f:\n",
+        "    text = f.read()"
+      ],
+      "metadata": {
+        "id": "wBRUiE4Nhreb"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "CATEGORY='Discharge summary'\n",
+        "HADM_ID=159647\n",
+        "CHARTDATE='2146/07/28'"
+      ],
+      "metadata": {
+        "id": "_Hvh01j0yiTM"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import spacy;\n",
+        "import medspacy\n",
+        "# Option 1: Load default\n",
+        "nlp = medspacy.load()\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "MhxtBInDh1zQ"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "sectionizer = nlp.add_pipe(\"medspacy_sectionizer\")"
+      ],
+      "metadata": {
+        "id": "9b7tjhhYjbd1"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [],
+      "metadata": {
+        "id": "5NNORp421Rmm"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "nlp.pipe_names"
+      ],
+      "metadata": {
+        "id": "Bx68QnaZqvbe"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "doc = nlp(text)"
+      ],
+      "metadata": {
+        "id": "T5rAB1kIjhxo"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "len(doc._.sections)"
+      ],
+      "metadata": {
+        "id": "fV58jeqKwlyH"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "doc._.section_bodies[3]\n"
+      ],
+      "metadata": {
+        "id": "2wFw3ZUj1eX1"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "doc._.section_titles[3]"
+      ],
+      "metadata": {
+        "id": "UWiUXAgl1_0U"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "doc._.section_categories[3]"
+      ],
+      "metadata": {
+        "id": "CmcVd0HGwCWc"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "doc._.section_spans[3]"
+      ],
+      "metadata": {
+        "id": "3pv_leoXwJvE"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "\n",
+        "import re\n",
+        "def preprocess(x):\n",
+        "    y=re.sub('\\[(.*?)\\]','',x) #remove de-identified brackets\n",
+        "    y=re.sub('[0-9]+\\.','',y) #remove 1.2. since the segmenter segments based on this\n",
+        "    y=re.sub('dr\\.','doctor',y)\n",
+        "    y=re.sub('m\\.d\\.','md',y)\n",
+        "    y=re.sub('admission date:','',y)\n",
+        "    y=re.sub('Admission Date:','',y)\n",
+        "    y=re.sub('discharge date:','',y)\n",
+        "    y=re.sub('Discharge Date:','',y)\n",
+        "    y=re.sub('Date of Birth:','',y)\n",
+        "    y=re.sub('date of birth:','',y)\n",
+        "    y=re.sub('--|__|==','',y)\n",
+        "    y = y.strip()\n",
+        "    return y"
+      ],
+      "metadata": {
+        "id": "1AOugV0dIck2"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "\n",
+        "ls_notes=[]\n",
+        "for j in range(len(doc._.sections)):\n",
+        "          mystr=str(doc._.section_spans[j])\n",
+        "          mystr_Wothout_line=preprocess(mystr)\n",
+        "          ls_notes.append([HADM_ID,CHARTDATE,CATEGORY,mystr_Wothout_line,doc._.section_categories[j]])\n",
+        "\n",
+        "df2=pd.DataFrame(ls_notes,columns=[\"HADM_ID\",'CHARTDATE','CATEGORY',\"body_span_Wothout_line\",'category'])\n",
+        "\n",
+        "df2"
+      ],
+      "metadata": {
+        "id": "jmtPsg_WwVEG"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install scispacy"
+      ],
+      "metadata": {
+        "id": "NWa4M3O6ijv2"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install negspacy"
+      ],
+      "metadata": {
+        "id": "mCe8I_9nAzC1"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!python -m spacy download en_core_web_sm"
+      ],
+      "metadata": {
+        "id": "28JGe_NWBFan"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "CATEGORY='Discharge summary'\n",
+        "HADM_ID=159647\n",
+        "CHARTDATE='2146/07/28'"
+      ],
+      "metadata": {
+        "id": "V2SM7v3vEJO6"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import re\n",
+        "\n",
+        "import scispacy\n",
+        "import spacy\n",
+        "\n",
+        "from negspacy.negation import Negex\n",
+        "from negspacy.termsets import termset\n",
+        "from scispacy.linking import EntityLinker\n",
+        "import pandas as pd\n",
+        "\n",
+        "#nlp = spacy.load(\"en_ner_bc5cdr_md\")\n",
+        "nlp = spacy.load(\"en_core_web_sm\")\n",
+        "#\n",
+        "ts = termset(\"en_clinical\")\n",
+        "nlp.add_pipe(\"negex\", config={\"neg_termset\": ts.get_patterns()})\n",
+        "nlp.add_pipe(\"scispacy_linker\", config={\"linker_name\": \"umls\", \"max_entities_per_mention\": 1})\n",
+        "\n",
+        "linker = nlp.get_pipe(\"scispacy_linker\")\n",
+        "nlp.pipe_names"
+      ],
+      "metadata": {
+        "id": "honBb4ci1BQL"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "nlp.pipe_names"
+      ],
+      "metadata": {
+        "id": "nBuo-Z8k1BMv"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "text='Pt. is a 76 yo female with a history of ESRD on HD, CAD,atrial fibrillation, and DM2 who presents with a 1 day history of 3 episodes of nonbloody, nonbilious, clear emesis and 1  episode of nonbloody diarrhea.'"
+      ],
+      "metadata": {
+        "id": "iHXJSeSmFx_1"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "d = {'HADM_ID':159647, 'CHARTDATE': '2146/07/28','body_span_Wothout_line':text, 'category':'past_medical_history'}\n",
+        "df = pd.DataFrame(data=d,index=[0])\n",
+        "df"
+      ],
+      "metadata": {
+        "id": "q4EL11IUE2xG"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "list_Cui=[]\n",
+        "list_Exception=[]\n",
+        "\n",
+        "\n",
+        "\n",
+        "for i in range(len(df)):\n",
+        "            text= str(df.iloc[i]['body_span_Wothout_line'])\n",
+        "            HADM_ID\t=df.iloc[i]['HADM_ID']\n",
+        "            CHARTDATE\t=df.iloc[i]['CHARTDATE']\n",
+        "\n",
+        "            category_Inner=\tdf.iloc[i]['category']\n",
+        "\n",
+        "            doc = nlp(text)\n",
+        "\n",
+        "\n",
+        "            print(\"\\n\")\n",
+        "            for entity in doc.ents:\n",
+        "\n",
+        "                if(len(entity._.kb_ents)>0):\n",
+        "                    first_cuid = entity._.kb_ents[0][0]\n",
+        "                    kb_entry = linker.kb.cui_to_entity[first_cuid]\n",
+        "                    list_Cui.append([HADM_ID,CHARTDATE,category_Inner,entity._.negex,entity.text,\n",
+        "                                     first_cuid, kb_entry.canonical_name,entity.label_  ])\n",
+        "                else:\n",
+        "                    list_Exception.append([HADM_ID,CHARTDATE,category_Inner,entity.text])\n",
+        "                    continue\n",
+        "\n",
+        "\n",
+        "\n",
+        "df_cui=pd.DataFrame(list_Cui,columns=['HADM_ID','CHARTDATE','category_Inner','negex','entity_text',\n",
+        "                                      'first_cuid', 'canonical_name','label'\n",
+        "                                          ])\n",
+        "df_cui"
+      ],
+      "metadata": {
+        "id": "CJ-vAPm31BFh"
+      },
+      "execution_count": null,
+      "outputs": []
+    }
+  ],
+  "metadata": {
+    "colab": {
+      "name": "NER.ipynb",
+      "private_outputs": true,
+      "provenance": [],
+      "authorship_tag": "ABX9TyN8c/xeQXSLZ9XzOdnyDFpC",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "display_name": "Python 3",
+      "name": "python3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
